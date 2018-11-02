@@ -22,11 +22,12 @@ type Request struct {
 }
 
 type RequestData struct {
-	NodeExternalID string `json:"node_external_id"`
-	PinnedFiles    []Item `json:"pinned_files"`
-	AvailableSpace uint64 `json:"available_space"`
-	Throughput     uint64 `json:"throughput"`
-	LastTimestamp  uint64 `json:"last_timestamp"`
+	NodeExternalID  string `json:"node_external_id"`
+	PinnedFiles     []Item `json:"pinned_files"`
+	PinningFileSize uint32 `json:"pinning_file_size"`
+	AvailableSpace  uint64 `json:"available_space"`
+	Throughput      uint64 `json:"throughput"`
+	LastTimestamp   uint64 `json:"last_timestamp"`
 }
 
 type Item struct {
@@ -61,6 +62,7 @@ func Report() ([]byte, error) {
 		size := sizes[key]
 		items[i] = Item{ID: key, Size: size}
 	}
+	pinningFileSize := pinner.PinningFileSize()
 	available_space, err := command.GetFreeSpace()
 	if err != nil {
 		errlog.Println("Get free space failed, error: ", err)
@@ -77,7 +79,7 @@ func Report() ([]byte, error) {
 		return nil, err
 	}
 	timestamp, _ := strconv.ParseUint(timestampstr, 10, 64)
-	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: ""}
+	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, PinningFileSize: pinningFileSize, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: ""}
 	requestJson, err := json.Marshal(request)
 	stdlog.Println("Ready for report IPFS node status: ", string(requestJson))
 	responseJson, err := doBytesPost(Report_URL, requestJson)

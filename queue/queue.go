@@ -78,6 +78,17 @@ func (q *SyncQueue) Len() (l int) {
 	return
 }
 
+func (q *SyncQueue) Has(v interface{}) bool {
+	q.lock.Lock()
+	for i := 0; i < q.buffer.Length(); i++ {
+		if v == q.buffer.Get(i) {
+			return true
+		}
+	}
+	q.lock.Unlock()
+	return false
+}
+
 func (q *SyncQueue) Close() {
 	q.lock.Lock()
 	if !q.closed {

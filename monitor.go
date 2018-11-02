@@ -23,7 +23,7 @@ const (
 var stdlog, errlog *log.Logger
 
 var ipfs_base_url = flag.String("ipfs_base_url", "http://127.0.0.1:5001", "Base URL of IPFS API, default value is http://127.0.0.1:5001")
-var server_url = flag.String("server_url", "http://127.0.0.1", "Server URL for reporting status, default value is http://127.0.0.1")
+var server_url = flag.String("server_url", "http://newtest.mboxone.com/ipfs/public/index.php/index/Call/index", "Server URL for reporting status, default value is http://newtest.mboxone.com/ipfs/public/index.php/index/Call/index")
 var cron_expr = flag.String("cron_expr", "0 0/30 * * * *", "Cron expression for report IPFS node status")
 
 // Service is the daemon service struct
@@ -63,7 +63,12 @@ func (service *Service) Manage() (string, error) {
 	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	c := cron.New()
-	c.AddFunc(*cron_expr, func() { reporter.Report() })
+	c.AddFunc(*cron_expr, func() {
+		_, err := reporter.Report()
+		if err != nil {
+			errlog.Printf("Get status from IPFS node failed, error: %s\n", err)
+		}
+	})
 	c.Start()
 	pinner.PinService()
 	killSignal := <-interrupt
@@ -89,27 +94,4 @@ func main() {
 	}
 
 	fmt.Println(status)
-}
-
-func main1() {
-	fmt.Println(len(os.Args))
-	//r, _ := reporter.Report()
-	// fmt.Printf("%d\n", len("abc"))
-	// err := ioutil.WriteFile("/tmp/abc.txt", []byte("456456346"), 0644)
-	// if os.IsNotExist(err) {
-	// 	fmt.Println("123")
-	// }
-	// stat, fserr := disk.Usage("/home/aurawing")
-	// if fserr != nil {
-	// 	return
-	// }
-	// fmt.Println("Used:", stat.Used)
-
-	// fs := syscall.Statfs_t{}
-	// err := syscall.Statfs("/home", &fs)
-	// if err != nil {
-	// 	return
-	// }
-	// fmt.Println(fs.Bfree * uint64(fs.Bsize))
-	// fmt.Println(fs.Blocks * uint64(fs.Bsize))
 }
