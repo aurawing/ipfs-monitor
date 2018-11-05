@@ -1,23 +1,20 @@
 package signer
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/md5"
-	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"ipfs-monitor/command"
-	"math/big"
+
+	ci "github.com/libp2p/go-libp2p-crypto"
 )
 
-var priv *ecdsa.PrivateKey
+//var priv *ci.PrivKey
+
+var privatekey []byte
 
 type Config struct {
-	Identity
+	Identity Identity
 }
 
 type Identity struct {
@@ -40,30 +37,17 @@ func Initialize() {
 	if err != nil {
 		panic("Can not parse config file to json")
 	}
-	bytes, err := base64.StdEncoding.DecodeString(result.Identity.PrivKey)
+	privatekey, err = base64.StdEncoding.DecodeString(result.Identity.PrivKey)
 	if err != nil {
 		panic("Can not decode base64 private key")
 	}
-	k := new(big.Int)
-	k.SetBytes(bytes)
-	priv = new(ecdsa.PrivateKey)
-	curve := elliptic.P256()
-	priv.PublicKey.Curve = curve
-	priv.D = k
-	// priv.PublicKey.X, priv.PublicKey.Y = curve.ScalarBaseMult(k.Bytes())
-	// fmt.Printf("X: %d, Y: %d\n", priv.PublicKey.X, priv.PublicKey.Y)
+
 }
 
-func Sign(content string) (string, error) {
-	h := md5.New()
-	io.WriteString(h, content)
-	signhash := h.Sum(nil)
-
-	r, s, err := ecdsa.Sign(rand.Reader, priv, signhash)
+func Sign(content string) ([]byte, error) {
+	priv, err := ci.UnmarshalPrivateKey(privatekey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	signature := r.Bytes()
-	signature = append(signature, s.Bytes()...)
-	return hex.EncodeToString(signature), nil
+	return priv.Sign([]byte(content))
 }

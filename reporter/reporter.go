@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 	"ipfs-monitor/command"
@@ -106,7 +107,7 @@ func Report() ([]byte, error) {
 		errlog.Println("Report status to server failed, error: ", err)
 		return nil, err
 	}
-	request.Signature = signature
+	request.Signature = hex.EncodeToString(signature)
 	requestJson, err := json.Marshal(request)
 	if err != nil {
 		errlog.Println("Report status to server failed, error: ", err)

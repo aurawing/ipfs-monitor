@@ -32,6 +32,7 @@
 ### Go Patch ###
 /vendor/
 /Godeps/
+debug
 
 ### Glide Patch ###
 glide.lock

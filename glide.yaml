@@ -7,3 +7,7 @@ import:
 - package: github.com/shirou/gopsutil
   version: v2.18.07
 - package: gopkg.in/eapache/queue.v1
+- package: github.com/libp2p/go-libp2p-crypto
+  version: v2.0.1
+- package: github.com/gogo/protobuf/proto
+- package: github.com/minio/sha256-simd
