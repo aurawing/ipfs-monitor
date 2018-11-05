@@ -1,12 +1,14 @@
 package verifier
 
 import (
+	"C"
 	"encoding/base64"
 	"encoding/hex"
 
 	ci "github.com/libp2p/go-libp2p-crypto"
 )
 
+//export Verify
 func Verify(pubkey string, content string, signature string) bool {
 	pubKeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
 	if err != nil {
