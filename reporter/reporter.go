@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"ipfs-monitor/command"
 	"ipfs-monitor/pinner"
+	"ipfs-monitor/signer"
 	"log"
 	"net/http"
 	"os"
@@ -45,6 +46,21 @@ func init() {
 	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
 }
 
+func init() {
+	//http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+	// // Customize the Transport to have larger connection pool
+	// defaultRoundTripper := http.DefaultTransport
+	// defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+	// if !ok {
+	// 	panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+	// }
+	// defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
+	// defaultTransport.MaxIdleConns = 100
+	// defaultTransport.MaxIdleConnsPerHost = 100
+
+	// httpClient = &http.Client{Transport: &defaultTransport}
+}
+
 func Report() ([]byte, error) {
 	stdlog.Println("Prepare information of IPFS node for reporting status to server...")
 	node_external_id, err := command.GetPeerID()
@@ -80,7 +96,22 @@ func Report() ([]byte, error) {
 	}
 	timestamp, _ := strconv.ParseUint(timestampstr, 10, 64)
 	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, PinningFileSize: pinningFileSize, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: ""}
+	dataJson, err := json.Marshal(request.Data)
+	if err != nil {
+		errlog.Println("Report status to server failed, error: ", err)
+		return nil, err
+	}
+	signature, err := signer.Sign(string(dataJson[:]))
+	if err != nil {
+		errlog.Println("Report status to server failed, error: ", err)
+		return nil, err
+	}
+	request.Signature = signature
 	requestJson, err := json.Marshal(request)
+	if err != nil {
+		errlog.Println("Report status to server failed, error: ", err)
+		return nil, err
+	}
 	stdlog.Println("Ready for report IPFS node status: ", string(requestJson))
 	responseJson, err := doBytesPost(Report_URL, requestJson)
 	if err != nil {

@@ -3,7 +3,9 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/shirou/gopsutil/disk"
 )
@@ -192,6 +194,38 @@ func GetRepoPath() (string, error) {
 		return "", err
 	}
 	return result.RepoPath, nil
+}
+
+func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
+	resp, err := http.Get(Base_URL + "/api/v0/get?arg=" + hash)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	fileSizeStr := resp.Header.Get("X-Content-Length")
+	if fileSizeStr == "" {
+		fileSizeStr = "-1"
+	}
+	fileSize, err := strconv.ParseInt(fileSizeStr, 10, 64)
+	if err != nil {
+		fileSize = -1
+	}
+	var downloadSize int64
+	for {
+		written, err := io.CopyN(dst, resp.Body, 128*1024)
+		if progress != nil {
+			downloadSize += written
+			progress(downloadSize, fileSize)
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func PinFile(hash string) (*PinedResult, error) {
