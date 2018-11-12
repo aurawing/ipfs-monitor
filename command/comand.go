@@ -79,6 +79,23 @@ func GetPeerID() (string, error) {
 	return result.ID, nil
 }
 
+// GetPeerID used for get IPFS peer ID
+func GetPubKey() (string, error) {
+	resp, err := http.Get(Base_URL + "/api/v0/id")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Get peer id failed: %s", resp.Status)
+	}
+	var result ID
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.PublicKey, nil
+}
+
 // GetPinedList used for get pined file list
 func GetPinedList() ([]string, map[string]uint64, error) {
 	resp, err := http.Get(Base_URL + "/api/v0/pin/ls?type=recursive")

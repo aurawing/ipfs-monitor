@@ -21,6 +21,7 @@ var stdlog, errlog *log.Logger
 type Request struct {
 	Data      *RequestData `json:"data"`
 	Signature string       `json:"signature"`
+	PublicKey string       `json:"publickey"`
 }
 
 type RequestData struct {
@@ -69,6 +70,11 @@ func Report() ([]byte, error) {
 		errlog.Println("Get peer ID failed, error: ", err)
 		return nil, err
 	}
+	publickey, err := command.GetPubKey()
+	if err != nil {
+		errlog.Println("Get public key failed, error: ", err)
+		return nil, err
+	}
 	keys, sizes, err := command.GetPinedList()
 	if err != nil {
 		errlog.Println("Get pined file list failed, error: ", err)
@@ -96,7 +102,7 @@ func Report() ([]byte, error) {
 		return nil, err
 	}
 	timestamp, _ := strconv.ParseUint(timestampstr, 10, 64)
-	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, PinningFileSize: pinningFileSize, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: ""}
+	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, PinningFileSize: pinningFileSize, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: "", PublicKey: publickey}
 	dataJson, err := json.Marshal(request.Data)
 	if err != nil {
 		errlog.Println("Report status to server failed, error: ", err)
