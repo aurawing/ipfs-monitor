@@ -26,7 +26,7 @@ var stdlog, errlog *log.Logger
 
 var ipfs_base_url = flag.String("ipfs_base_url", "http://127.0.0.1:5001", "Base URL of IPFS API")
 var server_url = flag.String("server_url", "http://newtest.mboxone.com/ipfs/public/index.php/index/Call/index", "Server URL for reporting status")
-var cron_expr = flag.String("cron_expr", "@every 30m", "Cron expression for reporting IPFS node status regularly")
+var cron_expr = flag.String("cron_expr", "0 0/30 * * * *", "Cron expression for reporting IPFS node status regularly")
 var job_count = flag.Int("job_count", 5, "Thread count of concurrent pinning job, before 1 and 20")
 
 // Service is the daemon service struct
