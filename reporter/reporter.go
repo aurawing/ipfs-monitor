@@ -25,12 +25,13 @@ type Request struct {
 }
 
 type RequestData struct {
-	NodeExternalID  string `json:"node_external_id"`
-	PinnedFiles     []Item `json:"pinned_files"`
-	PinningFileSize uint32 `json:"pinning_file_size"`
-	AvailableSpace  uint64 `json:"available_space"`
-	Throughput      uint64 `json:"throughput"`
-	LastTimestamp   uint64 `json:"last_timestamp"`
+	NodeExternalID  string             `json:"node_external_id"`
+	PinnedFiles     []Item             `json:"pinned_files"`
+	PinningFileSize uint32             `json:"pinning_file_size"`
+	AvailableSpace  uint64             `json:"available_space"`
+	Throughput      uint64             `json:"throughput"`
+	LastTimestamp   uint64             `json:"last_timestamp"`
+	FailList        []command.FailItem `json:"fail_list"`
 }
 
 type Item struct {
@@ -102,8 +103,22 @@ func Report() ([]byte, error) {
 		return nil, err
 	}
 	timestamp, _ := strconv.ParseUint(timestampstr, 10, 64)
-	request := &Request{Data: &RequestData{NodeExternalID: node_external_id, PinnedFiles: items, PinningFileSize: pinningFileSize, AvailableSpace: available_space, Throughput: throughput, LastTimestamp: timestamp}, Signature: "", PublicKey: publickey}
+
+	request := &Request{
+		Data: &RequestData{
+			NodeExternalID:  node_external_id,
+			PinnedFiles:     items,
+			PinningFileSize: pinningFileSize,
+			AvailableSpace:  available_space,
+			Throughput:      throughput,
+			LastTimestamp:   timestamp,
+			FailList:        command.FailList,
+		},
+		Signature: "",
+		PublicKey: publickey,
+	}
 	dataJson, err := json.Marshal(request.Data)
+	command.FailList = nil //reset failList
 	if err != nil {
 		errlog.Println("Report status to server failed, error: ", err)
 		return nil, err
