@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -225,7 +224,6 @@ func GetRepoPath() (string, error) {
 }
 
 func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
-	log.Println(len(FailList))
 	resp, err := http.Get(Base_URL + "/api/v0/get?arg=" + hash)
 	if err != nil {
 		item := FailItem{hash, 1, "time out"}
