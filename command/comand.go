@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"ipfs-monitor/config"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 var Base_URL string
 var FailList []FailItem
-var Timeout = 60 * time.Second
+var httpStreamTimeout = config.GetHTTPStreamTimeout()
 
 // Faliure history
 type FailItem struct {
@@ -231,7 +232,7 @@ func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 		return err
 	}
 	defer resp.Body.Close()
-	timer := time.AfterFunc(Timeout, func() {
+	timer := time.AfterFunc(httpStreamTimeout, func() {
 		resp.Body.Close()
 		item := FailItem{hash, 1, "time out"}
 		FailList = append(FailList, item)
@@ -248,7 +249,7 @@ func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	for {
 		written, err := io.CopyN(dst, resp.Body, 128*1024)
 		if progress != nil {
-			timer.Reset(Timeout)
+			timer.Reset(httpStreamTimeout)
 			downloadSize += written
 			progress(downloadSize, fileSize)
 		}
