@@ -1,4 +1,8 @@
 package: ipfs-monitor
+repos:
+- original: https://golang.org/x/sys
+  repo: https://github.com/golang/sys
+  vcs: git
 import:
 - package: github.com/takama/daemon
   version: 0.11.0
