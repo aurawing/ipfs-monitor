@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 )
@@ -54,7 +53,6 @@ func init() {
 		jsonErr := json.NewDecoder(resp.Body).Decode(&result)
 		if jsonErr != nil {
 			currentConfig = defaultConfig
-			log.Println("json解析错误 %s", jsonErr)
 		} else {
 			currentConfig = result
 		}

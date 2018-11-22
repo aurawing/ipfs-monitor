@@ -249,12 +249,13 @@ func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	for {
 		written, err := io.CopyN(dst, resp.Body, 128*1024)
 		if progress != nil {
-			timer.Reset(httpStreamTimeout)
 			downloadSize += written
 			progress(downloadSize, fileSize)
 		}
 		if err != nil {
+			timer.Reset(httpStreamTimeout)
 			if err == io.EOF {
+				timer.Stop()
 				break
 			} else {
 				return err
