@@ -4,13 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"ipfs-monitor/config"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/shirou/gopsutil/disk"
 )
 
 var Base_URL string
+var FailList []FailItem
+var httpStreamTimeout = config.GetHTTPStreamTimeout()
+
+// Faliure history
+type FailItem struct {
+	Hash   string
+	Code   int
+	Detail string
+}
 
 // ID struct for command `ipfs id`
 type ID struct {
@@ -216,9 +227,16 @@ func GetRepoPath() (string, error) {
 func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	resp, err := http.Get(Base_URL + "/api/v0/get?arg=" + hash)
 	if err != nil {
+		item := FailItem{hash, 1, "time out"}
+		FailList = append(FailList, item)
 		return err
 	}
 	defer resp.Body.Close()
+	timer := time.AfterFunc(httpStreamTimeout, func() {
+		resp.Body.Close()
+		item := FailItem{hash, 1, "time out"}
+		FailList = append(FailList, item)
+	})
 	fileSizeStr := resp.Header.Get("X-Content-Length")
 	if fileSizeStr == "" {
 		fileSizeStr = "-1"
@@ -231,6 +249,7 @@ func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	for {
 		written, err := io.CopyN(dst, resp.Body, 128*1024)
 		if progress != nil {
+			timer.Reset(httpStreamTimeout)
 			downloadSize += written
 			progress(downloadSize, fileSize)
 		}

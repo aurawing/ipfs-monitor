@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"ipfs-monitor/command"
+	"ipfs-monitor/config"
 	"ipfs-monitor/pinner"
 	"ipfs-monitor/reporter"
 	"ipfs-monitor/signer"
@@ -24,10 +25,11 @@ const (
 
 var stdlog, errlog *log.Logger
 
-var ipfs_base_url = flag.String("ipfs_base_url", "http://127.0.0.1:5001", "Base URL of IPFS API")
-var server_url = flag.String("server_url", "http://newtest.mboxone.com/ipfs/public/index.php/index/Call/index", "Server URL for reporting status")
-var cron_expr = flag.String("cron_expr", "0 0/30 * * * *", "Cron expression for reporting IPFS node status regularly")
-var job_count = flag.Int("job_count", 5, "Thread count of concurrent pinning job, before 1 and 20")
+var ipfs_base_url = flag.String("ipfs_base_url", config.GetCurrentConfig().BaseUrl, "Base URL of IPFS API")
+var server_url = &config.GetCurrentConfig().ServerUrl
+var cron_expr = &config.GetCurrentConfig().CronExpr
+var job_count = &config.GetCurrentConfig().JobCount
+var httpTimeout = config.GetHTTPTimeout()
 
 // Service is the daemon service struct
 type Service struct {
@@ -91,6 +93,7 @@ func main() {
 		pinner.JobCount = 20
 	}
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+	http.DefaultTransport.(*http.Transport).ResponseHeaderTimeout = httpTimeout
 	signer.Initialize()
 	srv, err := daemon.New(name, description)
 	if err != nil {
