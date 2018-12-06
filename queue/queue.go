@@ -1,7 +1,9 @@
 package queue
 
 import (
+	"io/ioutil"
 	"sync"
+	"unsafe"
 
 	"gopkg.in/eapache/queue.v1"
 )
@@ -96,4 +98,42 @@ func (q *SyncQueue) Close() {
 		q.popable.Signal()
 	}
 	q.lock.Unlock()
+}
+
+type SliceMock struct {
+	addr uintptr
+	len  int
+	cap  int
+}
+
+func Encode(data *queue.Queue) []byte {
+	len := unsafe.Sizeof(*data)
+	bts := &SliceMock{
+		addr: uintptr(unsafe.Pointer(data)),
+		cap:  int(len),
+		len:  int(len),
+	}
+	return *(*[]byte)(unsafe.Pointer(bts))
+}
+
+func Decode(data []byte) *queue.Queue {
+	return *(**queue.Queue)(unsafe.Pointer(&data))
+}
+
+func (q *SyncQueue) Save(filename string) error {
+	buf := Encode(q.buffer)
+	return ioutil.WriteFile(filename, buf, 0644)
+}
+
+func (q *SyncQueue) Recover(filename string) error {
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	q.buffer = Decode(buf)
+	return nil
+}
+
+func (q *SyncQueue) Length() int {
+	return q.buffer.Length()
 }

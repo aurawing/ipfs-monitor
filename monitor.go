@@ -26,6 +26,9 @@ const (
 var stdlog, errlog *log.Logger
 
 var ipfs_base_url = flag.String("ipfs_base_url", config.GetCurrentConfig().BaseUrl, "Base URL of IPFS API")
+var debug = flag.Bool("debug", false, "Is debug mode")
+var useDefaultConfig = flag.Bool("use-default-config", false, "use-default-config")
+var debugServer = flag.String("debug-config-server", "", "Debug config server url")
 var server_url = &config.GetCurrentConfig().ServerUrl
 var cron_expr = &config.GetCurrentConfig().CronExpr
 var job_count = &config.GetCurrentConfig().JobCount
@@ -83,6 +86,12 @@ func (service *Service) Manage() (string, error) {
 
 func main() {
 	flag.Parse()
+	if *debug == false {
+		*useDefaultConfig = false
+	}
+	if *useDefaultConfig == false {
+		config.GetServerConfig(*debug, *debugServer)
+	}
 	command.Base_URL = *ipfs_base_url
 	reporter.Report_URL = *server_url
 	pinner.JobCount = *job_count

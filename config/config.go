@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -16,12 +17,13 @@ type config struct {
 }
 
 const configServer = "http://hash.iptokenmain.com/monitor/config.json"
+const DebugConfigServer = "http://newtest.mboxone.com/monitor/config.json"
 
 var defaultConfig = config{
 	"http://127.0.0.1:5001",
 	"http://newtest.mboxone.com/ipfs/public/index.php/index/Call/index",
-	"@every 60s",
-	5,
+	"@every 5s",
+	2,
 	string(1 * time.Minute),
 	string(3 * time.Minute),
 }
@@ -46,8 +48,21 @@ func GetHTTPStreamTimeout() time.Duration {
 	return td
 }
 
-func init() {
-	resp, err := http.Get(configServer)
+func GetMaxTaskNum() int {
+	return currentConfig.JobCount
+}
+
+func GetServerConfig(debug bool, configUrl string) {
+	var url = configServer
+	if debug {
+		if configUrl != "" {
+			url = configUrl
+		} else {
+			url = DebugConfigServer
+		}
+		fmt.Println("--------------------start debug mode---------------------")
+	}
+	resp, err := http.Get(url)
 	var result config
 	if err == nil && resp.StatusCode == http.StatusOK {
 		jsonErr := json.NewDecoder(resp.Body).Decode(&result)
@@ -59,4 +74,7 @@ func init() {
 	} else {
 		currentConfig = defaultConfig
 	}
+}
+
+func init() {
 }

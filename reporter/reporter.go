@@ -25,13 +25,14 @@ type Request struct {
 }
 
 type RequestData struct {
-	NodeExternalID  string             `json:"node_external_id"`
-	PinnedFiles     []Item             `json:"pinned_files"`
-	PinningFileSize uint32             `json:"pinning_file_size"`
-	AvailableSpace  uint64             `json:"available_space"`
-	Throughput      uint64             `json:"throughput"`
-	LastTimestamp   uint64             `json:"last_timestamp"`
-	FailList        []command.FailItem `json:"fail_list"`
+	NodeExternalID  string            `json:"node_external_id"`
+	PinnedFiles     []Item            `json:"pinned_files"`
+	PinningFileSize int               `json:"pinning_file_size"`
+	AvailableSpace  uint64            `json:"available_space"`
+	Throughput      uint64            `json:"throughput"`
+	LastTimestamp   uint64            `json:"last_timestamp"`
+	FailList        []pinner.FailItem `json:"fail_list"`
+	NeedPinNum      int               `json:"need_pin_num"`
 }
 
 type Item struct {
@@ -66,6 +67,7 @@ func init() {
 
 func Report() ([]byte, error) {
 	stdlog.Println("Prepare information of IPFS node for reporting status to server...")
+	peerId, _ := command.GetPeerID()
 	node_external_id, err := command.GetPeerID()
 	if err != nil {
 		errlog.Println("Get peer ID failed, error: ", err)
@@ -87,6 +89,7 @@ func Report() ([]byte, error) {
 		items[i] = Item{ID: key, Size: size}
 	}
 	pinningFileSize := pinner.PinningFileSize()
+	needPinNum := pinner.GetNeedTaskNum()
 	available_space, err := command.GetFreeSpace()
 	if err != nil {
 		errlog.Println("Get free space failed, error: ", err)
@@ -112,13 +115,14 @@ func Report() ([]byte, error) {
 			AvailableSpace:  available_space,
 			Throughput:      throughput,
 			LastTimestamp:   timestamp,
-			FailList:        command.FailList,
+			FailList:        pinner.FailList,
+			NeedPinNum:      needPinNum,
 		},
 		Signature: "",
 		PublicKey: publickey,
 	}
 	dataJson, err := json.Marshal(request.Data)
-	command.FailList = nil //reset failList
+	pinner.FailList = nil //reset failList
 	if err != nil {
 		errlog.Println("Report status to server failed, error: ", err)
 		return nil, err
@@ -135,12 +139,15 @@ func Report() ([]byte, error) {
 		return nil, err
 	}
 	stdlog.Println("Ready for report IPFS node status: ", string(requestJson))
+	stdlog.Println("需要任务:", needPinNum)
+	command.IpfsPub(peerId+"-log-request", string(requestJson))
 	responseJson, err := doBytesPost(Report_URL, requestJson)
 	if err != nil {
 		errlog.Println("Report status to server failed, error: ", err)
 		return nil, err
 	}
 	stdlog.Println("Sending status successful, retrieving response from server: ", string(responseJson))
+	command.IpfsPub(peerId+"-log-response", string(responseJson))
 	var response Response
 	if err := json.NewDecoder(bytes.NewReader(responseJson)).Decode(&response); err != nil {
 		errlog.Println("Decode response from server failed, error: ", err)
