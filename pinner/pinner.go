@@ -34,7 +34,7 @@ func init() {
 type Task struct {
 	Hash         string
 	TimeoutCount int //超时计数
-	Status       int //0 get中，1 成功 2，失败
+	Status       int //0 正常，1 下载超时 2，失败
 }
 
 var FailList []FailItem
@@ -48,6 +48,7 @@ type FailItem struct {
 
 func PinAsync(hashs []string) {
 	for _, hash := range hashs {
+		// 生成一个状态正常的任务
 		task := Task{hash, 0, 0}
 		if !syncQueue.Has(task) {
 			lock.Lock()
@@ -56,20 +57,6 @@ func PinAsync(hashs []string) {
 			lock.Unlock()
 		}
 	}
-}
-
-func RetryPinAsync(task *Task) *Task {
-	if !syncQueue.Has(*task) {
-		task.TimeoutCount += 1
-		if task.TimeoutCount < 3 {
-			errlog.Printf("任务 %s 超时 尝试第%d次\n", task.Hash, task.TimeoutCount+1)
-			return task
-		} else {
-			FailList = append(FailList, FailItem{task.Hash, 2, "Download time out"})
-			errlog.Printf("任务 %s 失败 返回失效\n", task.Hash)
-		}
-	}
-	return nil
 }
 
 func PinningFileSize() int {
@@ -81,13 +68,12 @@ func GetNeedTaskNum() int {
 }
 
 func PinService() {
+	resQueue := queue.NewSyncQueue()
 	for i := 0; i < JobCount; i++ {
 		go func() {
 			for {
 				item := syncQueue.Pop()
 				task := item.(Task)
-				// pinningQueue.Push(&task)
-				// pinningQueue.Save(".pinningList")
 				var progress int64
 				err := command.GetFile(task.Hash, ioutil.Discard, func(reads int64, total int64) {
 					if (100*reads/total - progress) >= 5 {
@@ -100,26 +86,47 @@ func PinService() {
 				if err != nil {
 					switch err.Error() {
 					case "Download time out":
-						RetryPinAsync(&task)
+						task.TimeoutCount++
+						task.Status = 1
 					case "Request time out":
-						FailList = append(FailList, FailItem{task.Hash, 1, "Request time out"})
-						errlog.Printf("任务 %s 失败 矿工节点连接超时, error: %s\n", task.Hash, err)
+						task.Status = 2
 					default:
-						RetryPinAsync(&task)
+						task.TimeoutCount++
+						task.Status = 1
 					}
 				} else {
 					stdlog.Println("Pinning file: ", task, GetNeedTaskNum(), PinningFileSize())
 					_, err = command.PinFile(task.Hash)
 					if err != nil {
 						errlog.Printf("Pin file %s failed, error: %s\n", task.Hash, err)
+						task.Status = 2
 					} else {
 						stdlog.Printf("Pin file %s successed.\n", task.Hash)
 					}
 				}
-				lock.Lock()
-				pinningCount--
-				lock.Unlock()
+				resQueue.Push(&task)
 			}
 		}()
+
+	}
+	// 处理pin结果
+	for {
+		item := resQueue.Pop()
+		task := item.(*Task)
+		if task.Status == 0 || task.Status == 2 || task.TimeoutCount >= 3 {
+			lock.Lock()
+			pinningCount--
+			lock.Unlock()
+			if task.Status == 2 {
+				FailList = append(FailList, FailItem{task.Hash, 1, "Request time out"})
+				errlog.Printf("任务：%s 连接矿工失败 返回失败", task.Hash)
+			} else if task.Status == 1 {
+				FailList = append(FailList, FailItem{task.Hash, 1, "Download time out"})
+				errlog.Printf("任务：%s 尝试下载失败3次 返回失败", task.Hash)
+			}
+		} else {
+			errlog.Printf("任务：%s 尝试下载失败%d次", task.Hash, task.TimeoutCount)
+			syncQueue.Push(*task)
+		}
 	}
 }
