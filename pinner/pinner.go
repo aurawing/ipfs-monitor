@@ -105,23 +105,25 @@ func PinService() {
 
 	}
 	// 处理pin结果
-	for {
-		item := resQueue.Pop()
-		task := item.(*Task)
-		if task.Status == 0 || task.Status == 2 || task.TimeoutCount >= 3 {
-			lock.Lock()
-			pinningCount--
-			lock.Unlock()
-			if task.Status == 2 {
-				FailList = append(FailList, FailItem{task.Hash, 1, "Request time out"})
-				errlog.Printf("任务：%s 连接矿工失败 返回失败", task.Hash)
-			} else if task.Status == 1 {
-				FailList = append(FailList, FailItem{task.Hash, 1, "Download time out"})
-				errlog.Printf("任务：%s 尝试下载失败3次 返回失败", task.Hash)
+	go func() {
+		for {
+			item := resQueue.Pop()
+			task := item.(*Task)
+			if task.Status == 0 || task.Status == 2 || task.TimeoutCount >= 3 {
+				lock.Lock()
+				pinningCount--
+				lock.Unlock()
+				if task.Status == 2 {
+					FailList = append(FailList, FailItem{task.Hash, 1, "Request time out"})
+					errlog.Printf("任务：%s 连接矿工失败 返回失败", task.Hash)
+				} else if task.Status == 1 {
+					FailList = append(FailList, FailItem{task.Hash, 1, "Download time out"})
+					errlog.Printf("任务：%s 尝试下载失败3次 返回失败", task.Hash)
+				}
+			} else {
+				errlog.Printf("任务：%s 尝试下载失败%d次", task.Hash, task.TimeoutCount)
+				syncQueue.Push(*task)
 			}
-		} else {
-			errlog.Printf("任务：%s 尝试下载失败%d次", task.Hash, task.TimeoutCount)
-			syncQueue.Push(*task)
 		}
-	}
+	}()
 }
