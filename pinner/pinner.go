@@ -16,19 +16,14 @@ var lock sync.Mutex
 
 var pinningCount int
 
-var syncQueue = queue.NewSyncQueue()
-
-// var pinningQueue = queue.NewSyncQueue()
+var syncQueue = queue.NewSyncQueue() // 待处理任务队列
+var resQueue = queue.NewSyncQueue()  //处理结果队列
 
 var stdlog, errlog *log.Logger
 
 func init() {
 	stdlog = log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
-	// _, err := os.Stat(".pinningFile")
-	// if err == nil {
-	// 	syncQueue.Recover(".pinningFile")
-	// }
 }
 
 type Task struct {
@@ -68,7 +63,6 @@ func GetNeedTaskNum() int {
 }
 
 func PinService() {
-	resQueue := queue.NewSyncQueue()
 	for i := 0; i < JobCount; i++ {
 		go func() {
 			for {
@@ -102,6 +96,7 @@ func PinService() {
 						task.Status = 2
 					} else {
 						stdlog.Printf("Pin file %s successed.\n", task.Hash)
+						task.Status = 0
 					}
 				}
 				resQueue.Push(&task)
