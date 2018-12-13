@@ -7,21 +7,14 @@ import (
 	"ipfs-monitor/config"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/disk"
 )
 
 var Base_URL string
-var FailList []FailItem
 var httpStreamTimeout = config.GetHTTPStreamTimeout()
-
-// Faliure history
-type FailItem struct {
-	Hash   string
-	Code   int
-	Detail string
-}
 
 // ID struct for command `ipfs id`
 type ID struct {
@@ -226,16 +219,15 @@ func GetRepoPath() (string, error) {
 
 func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	resp, err := http.Get(Base_URL + "/api/v0/get?arg=" + hash)
+	// 如果请求超时直接返回文件失败
 	if err != nil {
-		item := FailItem{hash, 1, "time out"}
-		FailList = append(FailList, item)
-		return err
+		return fmt.Errorf("Request time out")
 	}
 	defer resp.Body.Close()
 	timer := time.AfterFunc(httpStreamTimeout, func() {
 		resp.Body.Close()
-		item := FailItem{hash, 1, "time out"}
-		FailList = append(FailList, item)
+		// 如果下载超时，返回一个下载超时错误
+		err = fmt.Errorf("Download time out")
 	})
 	fileSizeStr := resp.Header.Get("X-Content-Length")
 	if fileSizeStr == "" {
@@ -248,20 +240,45 @@ func GetFile(hash string, dst io.Writer, progress func(int64, int64)) error {
 	var downloadSize int64
 	for {
 		written, err := io.CopyN(dst, resp.Body, 128*1024)
+		// 如果有下载流量重置超时定时器
+		timer.Reset(httpStreamTimeout)
 		if progress != nil {
-			timer.Reset(httpStreamTimeout)
 			downloadSize += written
 			progress(downloadSize, fileSize)
 		}
 		if err != nil {
 			if err == io.EOF {
+				timer.Stop()
 				break
 			} else {
 				return err
 			}
 		}
 	}
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func ExecCommand(commands []string, args []string, addon string) (*http.Response, error) {
+	var url = Base_URL + "/api/v0/" + strings.Join(commands, "/")
+	if len(args) > 0 {
+		url += "?"
+		for i := 0; i < len(args); i++ {
+			url += "arg=" + args[i]
+			if i != len(args)-1 {
+				url += "&"
+			}
+		}
+	}
+	url += addon
+	return http.Get(url)
+}
+
+func IpfsPub(topic string, message string) error {
+	_, err := ExecCommand([]string{"pubsub", "pub"}, []string{topic, message}, "")
+	return err
 }
 
 func PinFile(hash string) (*PinedResult, error) {
